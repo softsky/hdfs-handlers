@@ -29,6 +29,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private static final String STATUS_COMPLETE = "COMPLETED";
 
+    // TODO split the logic into separate methods of the class
     @Override
     public void doIt(final String inFile) throws RuntimeException {
         // 1. Read file from HDFS IN folder
@@ -61,6 +62,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         } while (STATUS_COMPLETE.equals(dataSource.getStatus()));
 
         // 3. Load input file to AWS datasource
+        // TODO convert Spark's DataSet to inputStream
         AmazonS3 s3client = AmazonS3EncryptionClientBuilder.defaultClient();
         InputStream inputStream = null;
         ObjectMetadata objectMetadata = null;
