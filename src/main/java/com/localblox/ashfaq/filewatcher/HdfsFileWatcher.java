@@ -85,6 +85,8 @@ public class HdfsFileWatcher {
     // processed twice).
     public void start() {
 
+        log.info("start HDFS watcher by hdfsAdminUri [{}]", hdfsAdminUri);
+
         proceed.set(true);
 
         DFSInotifyEventInputStream eventStream = getDfsInotifyEventInputStream();
