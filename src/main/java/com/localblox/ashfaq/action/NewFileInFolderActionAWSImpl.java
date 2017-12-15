@@ -12,13 +12,25 @@ import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.AnalysisException;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoder;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.lit;
+import static org.apache.spark.sql.functions.udf;
+
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -155,7 +167,20 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                                        "SIC ( Source3 )",
                                        "Credit Rating");
 
-        // TODO - preprocess columns:
+        // TODO - pre-process columns:
+
+        //df.select("Facebook Profile").flatMap(x => x.toString.split(";")).filter(x => x.trim.startsWith("Likes:"))
+        // .map(_.split(":")(1))
+
+        spark.udf().register("getFBLikes", (String s) -> transformFBToLikes(s), DataTypes.StringType);
+
+        ds = ds.withColumn("FaceBookLikeCount", callUDF("getFBLikes", col("Facebook Profile")));
+
+        Encoder<Row> rowEncoder = Encoders.bean(Row.class);
+        ds.select("County Name", "Zip Code")
+          .map((MapFunction<Row, Row>) value -> RowFactory.create(value.toSeq(),value+"dssdsdsdsd"), rowEncoder).show();
+
+//        UserDefinedFunction userDefinedFunction = udf()
 
 //        Review Sources	- Probably have a count
 //        Facebook Profile	- Extract features (Number of likes)
@@ -193,4 +218,12 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
         return ds;
     }
+
+    private static String transformFBToLikes(String input) {
+        String result = Arrays.stream(input.split(";"))
+                              .filter(s1 -> s1.trim().startsWith("Likes:"))
+                              .findFirst().map(s1 -> s1.split(":")[1]).orElse("");
+        return result;
+    }
+
 }
