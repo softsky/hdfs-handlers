@@ -11,6 +11,7 @@ import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
 import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.spark.sql.AnalysisException;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -35,6 +36,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema";
     private static final String DATASOURCE_ID = "exampleDataSourceId";
     private static final String DATASOURCE_NAME = "exampleDataSourceName";
+
     @Override
     public void doIt(final String inFile) throws RuntimeException {
         // 1. Read file from HDFS IN folder
@@ -89,7 +91,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         CreateDataSourceFromS3Request createDataSourceFromS3Request = new CreateDataSourceFromS3Request();
         S3DataSpec dataSpec = new S3DataSpec();
         dataSpec.withDataLocationS3(S3_DATA_LOCATION).withDataSchemaLocationS3(
-                S3_DATA_LOCATION_SCHEMA);
+            S3_DATA_LOCATION_SCHEMA);
         createDataSourceFromS3Request.withDataSourceId(DATASOURCE_ID)
                                      .withDataSourceName(DATASOURCE_NAME).withDataSpec(dataSpec);
         CreateDataSourceFromS3Result dataSourceFromS3 = amazonMLClient
@@ -136,21 +138,58 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                                        "HQ_GrowthScore", "HQ_EstMonthlyUniques",
                                        "HQ_EstInboundLinks", "HQ_TwitterFollowers",
                                        "HQ_FacebookLikes", "HQ_FacebookTalkingAbout",
-                                       "HQ_LinkedInFollowerCount");
+                                       "HQ_LinkedInFollowerCount",
+                                       "Age on LocalBlox",
+                                       "Additional Attribute Count",
+                                       "Photos Captured Count",
+                                       "Year Founded",
+                                       "Verified",
+                                       "Confirmed Verification Done",
+                                       "Bucket",
+                                       "Source",
+                                       "Contact Person Position 2",
+                                       "8 Digit SIC ( Source1 )",
+                                       "SIC8 Category Name",
+                                       "6 Digit SIC ( Source2 )",
+                                       "SIC6 Category Name",
+                                       "SIC ( Source3 )",
+                                       "Credit Rating");
 
-        // TODO - remove beffore production!!! needed to explore data!
-        // spark.sql("SELECT * FROM global_temp.aidata").show()
-        // FIXME doesn wor yet: scala> spark.sql("SELECT * FROM global_temp.aidata").show()
-        // FIXME org.apache.spark.sql.AnalysisException: Table or view not found: `global_temp`.`aidata`
-        try {
-            String view = "aidata";
-            ds.createGlobalTempView(view);
-            log.info("TEMRORARY VIEW CREATED FOR DATA EXPLORING: {}", view);
-            System.out.println("now you can explore the data...");
-            System.in.read();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // TODO - preprocess columns:
+
+//        Review Sources	- Probably have a count
+//        Facebook Profile	- Extract features (Number of likes)
+//        Twitter Profile	- Extract features (Number of followers, following)
+//        Additional Attributes	- Make binary features (DoesAcceptCreditCard?, etc)
+//        SIC Name / Category	- one hot encoding
+//        Category	- one hot encoding
+//        Full Category Set	- one hot encoding
+
+//        // TODO - remove beffore production!!! needed to explore data!
+//        // spark.sql("SELECT * FROM global_temp.aidata").show()
+//        // FIXME doesn wor yet: scala> spark.sql("SELECT * FROM global_temp.aidata").show()
+//        // FIXME org.apache.spark.sql.AnalysisException: Table or view not found: `global_temp`.`aidata`
+//        try {
+//            String view = "aidata";
+//            ds.createGlobalTempView(view);
+//            log.info("TEMRORARY VIEW CREATED FOR DATA EXPLORING: {}", view);
+//            System.out.println("now you can explore the data...");
+//            spark.sql("SELECT * FROM global_temp.aidata").show();
+//            System.in.read();
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+
+        // dump dataset to file for exploging
+        String outPath = "hdfs://master/out/" + StringUtils.substringAfterLast(inFile, "/");
+
+        log.info("dump file to {}", outPath);
+
+        ds.write()
+          .option("header", true)
+//          .option("quoteMode", "NON_NUMERIC")
+          .option("quoteAll", true)
+          .csv(outPath);
 
         return ds;
     }
