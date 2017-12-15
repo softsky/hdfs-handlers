@@ -35,7 +35,7 @@ Note:
 
 - All local path should be created before start docker compose
 - <LOCAL_HDFS_MASTER_PATH> should point to any directory to save HDFS Master state between container deletions
-- <LOCAL_APPLICATION_PATH> should point to any directory to save HDFS Worker state between container deletions
+- <LOCAL_HDFS_WORKER_PATH> should point to any directory to save HDFS Worker state between container deletions
 - <LOCAL_APPLICATION_PATH> should point to path where you will copy your app jar (hdfs-handlers-1.0-SNAPSHOT.jar)
 
 2. run `docker-compose up` in folder with `docker-compose.yml`
