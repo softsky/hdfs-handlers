@@ -36,21 +36,21 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // 2. Create DataSource (name from filename)
         GetDataSourceResult dataSource = createDataSource(amazonMLClient);
         // 4. Cretae Batch predition with params (DataSource ID, ...)
-        GetBatchPredictionResult batchPredictionResult = createBatchPrediction(amazonMLClient, dataSource);
+        GetBatchPredictionResult batchPredictionResult = createBatchPrediction(amazonMLClient, dataSource, inFile);
+
         // TODO 6. Read Prediction result from S3
         // TODO 7. write result into OUT folder in HDFS
     }
 
     private GetBatchPredictionResult createBatchPrediction(AmazonMachineLearning amazonMLClient,
-                                                           GetDataSourceResult dataSource) {
+                                                           GetDataSourceResult dataSource, String inFile) {
         CreateBatchPredictionRequest createBatchPredictionRequest = new CreateBatchPredictionRequest();
-        createBatchPredictionRequest.withBatchPredictionId("EXAMPLE-bp-2014-09-12-15-14-04-156")
+        createBatchPredictionRequest.withBatchPredictionId(inFile)
                                     .withBatchPredictionName("EXAMPLE")
                                     .withMLModelId("EXAMPLE-pr-2014-09-12-15-14-04-924")
                                     .withBatchPredictionDataSourceId(dataSource.getDataSourceId())
                                     .withOutputUri(
-                                        "s3://eml-test-EXAMPLE/test-outputs/EXAMPLE-bp-2014-09-12-15-14-04-156"
-                                        + "/results");
+                                        "s3://eml-test-EXAMPLE/test-outputs/" + inFile + "/results");
         CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(
             createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
