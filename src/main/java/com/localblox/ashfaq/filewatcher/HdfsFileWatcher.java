@@ -105,6 +105,11 @@ public class HdfsFileWatcher {
             } catch (Exception e) {
                 // TODO - handle exception.
                 log.error("error while events watching: {}", e.getMessage(), e);
+                try {
+                    Thread.sleep(1000L);
+                } catch (InterruptedException e1) {
+                    log.error("thread interrupted: {}", e.getMessage());
+                }
             }
         }
 
