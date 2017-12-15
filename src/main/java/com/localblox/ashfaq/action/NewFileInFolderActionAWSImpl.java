@@ -41,14 +41,18 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // TODO 7. write result into OUT folder in HDFS
     }
 
-    private GetBatchPredictionResult createBatchPrediction(AmazonMachineLearning amazonMLClient, GetDataSourceResult dataSource) {
+    private GetBatchPredictionResult createBatchPrediction(AmazonMachineLearning amazonMLClient,
+                                                           GetDataSourceResult dataSource) {
         CreateBatchPredictionRequest createBatchPredictionRequest = new CreateBatchPredictionRequest();
         createBatchPredictionRequest.withBatchPredictionId("EXAMPLE-bp-2014-09-12-15-14-04-156")
-                .withBatchPredictionName("EXAMPLE")
-                .withMLModelId("EXAMPLE-pr-2014-09-12-15-14-04-924")
-                .withBatchPredictionDataSourceId(dataSource.getDataSourceId())
-                .withOutputUri("s3://eml-test-EXAMPLE/test-outputs/EXAMPLE-bp-2014-09-12-15-14-04-156/results");
-        CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(createBatchPredictionRequest);
+                                    .withBatchPredictionName("EXAMPLE")
+                                    .withMLModelId("EXAMPLE-pr-2014-09-12-15-14-04-924")
+                                    .withBatchPredictionDataSourceId(dataSource.getDataSourceId())
+                                    .withOutputUri(
+                                        "s3://eml-test-EXAMPLE/test-outputs/EXAMPLE-bp-2014-09-12-15-14-04-156"
+                                        + "/results");
+        CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(
+            createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
         // 5. Poll predtion status untill COMPLETE
         GetBatchPredictionRequest getBatchPredictionRequest = new GetBatchPredictionRequest();
@@ -67,22 +71,22 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private void loadDataToS3(Dataset<Row> selectedData) {
         selectedData.write().format("com.knoldus.spark.s3").option("accessKey", "s3_access_key")
-                        .option("secretKey", "s3_secret_key").option("bucket", "bucket_name")
-                        .option("fileType", "csv").save();
+                    .option("secretKey", "s3_secret_key").option("bucket", "bucket_name")
+                    .option("fileType", "csv").save();
     }
 
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
         CreateDataSourceFromS3Request createDataSourceFromS3Request = new CreateDataSourceFromS3Request();
         S3DataSpec dataSpec = new S3DataSpec();
         dataSpec.withDataLocationS3("s3://eml-test-EXAMPLE/data.csv").withDataSchemaLocationS3(
-                        "s3://eml-test-EXAMPLE/data.csv.schema");
+            "s3://eml-test-EXAMPLE/data.csv.schema");
         createDataSourceFromS3Request.withDataSourceId("exampleDataSourceId")
-                        .withDataSourceName("exampleDataSourceName").withDataSpec(dataSpec);
+                                     .withDataSourceName("exampleDataSourceName").withDataSpec(dataSpec);
         CreateDataSourceFromS3Result dataSourceFromS3 = amazonMLClient
-                        .createDataSourceFromS3(createDataSourceFromS3Request);
+            .createDataSourceFromS3(createDataSourceFromS3Request);
         // check if created
         GetDataSourceRequest getDataSourceRequest = new GetDataSourceRequest()
-                        .withDataSourceId(dataSourceFromS3.getDataSourceId());
+            .withDataSourceId(dataSourceFromS3.getDataSourceId());
         GetDataSourceResult dataSource;
         do {
             dataSource = amazonMLClient.getDataSource(getDataSourceRequest);
@@ -97,30 +101,31 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private SparkSession getSparkSession() {
         return SparkSession.builder().appName("Java Spark SQL basic example")
-                        .config("spark.master", "local").getOrCreate();
+                           .config("spark.master", "local").getOrCreate();
     }
 
     private Dataset<Row> readFromHDFS(SparkSession spark, String inFile) {
-        return spark.read()
-                        .csv(inFile)
-                        .select("Address", "City Name", "State Code", "County Name", "Zip Code",
-                                        "Contact Person Name", "Contact Person Position",
-                                        "Gender Contact Person 2", "Employee Count",
-                                        "Employee Range", "Annual Revenues", "Sales Range",
-                                        "SIC Name / Category", "Category", "Full Category Set",
-                                        "Latitude", "Longitude", "Physical Neighborhood",
-                                        "Love Score", "Freshness Score", "Holistic Score",
-                                        "Hours of Operation", "Reviews Scanned",
-                                        "Good Reviews Scanned", "Average Review Rating",
-                                        "Likes Count", "Social Media Profiles Count",
-                                        "Facebook Profile", "Twitter Profile",
-                                        "Foursquare Profile", "HQ_Followers", "HQ_Type",
-                                        "HQ_Employees", "HQ_Name", "HQ_YearFounded",
-                                        "HQ_Categories", "HQ_Specialties", "HQ_Revenue",
-                                        "HQ_Ticker", "HQ_Exchange", "HQ_Acquisitions",
-                                        "HQ_GrowthScore", "HQ_EstMonthlyUniques",
-                                        "HQ_EstInboundLinks", "HQ_TwitterFollowers",
-                                        "HQ_FacebookLikes", "HQ_FacebookTalkingAbout",
-                                        "HQ_LinkedInFollowerCount");
+        Dataset<Row> ds = spark.read()
+                               .csv(inFile)
+                               .select("Address", "City Name", "State Code", "County Name", "Zip Code",
+                                       "Contact Person Name", "Contact Person Position",
+                                       "Gender Contact Person 2", "Employee Count",
+                                       "Employee Range", "Annual Revenues", "Sales Range",
+                                       "SIC Name / Category", "Category", "Full Category Set",
+                                       "Latitude", "Longitude", "Physical Neighborhood",
+                                       "Love Score", "Freshness Score", "Holistic Score",
+                                       "Hours of Operation", "Reviews Scanned",
+                                       "Good Reviews Scanned", "Average Review Rating",
+                                       "Likes Count", "Social Media Profiles Count",
+                                       "Facebook Profile", "Twitter Profile",
+                                       "Foursquare Profile", "HQ_Followers", "HQ_Type",
+                                       "HQ_Employees", "HQ_Name", "HQ_YearFounded",
+                                       "HQ_Categories", "HQ_Specialties", "HQ_Revenue",
+                                       "HQ_Ticker", "HQ_Exchange", "HQ_Acquisitions",
+                                       "HQ_GrowthScore", "HQ_EstMonthlyUniques",
+                                       "HQ_EstInboundLinks", "HQ_TwitterFollowers",
+                                       "HQ_FacebookLikes", "HQ_FacebookTalkingAbout",
+                                       "HQ_LinkedInFollowerCount");
+        return ds;
     }
 }
