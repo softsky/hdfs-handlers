@@ -110,7 +110,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private SparkSession getSparkSession() {
-        return SparkSession.builder().appName("Java Spark SQL basic example")
+        return SparkSession.builder().appName("Java Spark Transferring Application")
                            .config("spark.master", "local").getOrCreate();
     }
 
