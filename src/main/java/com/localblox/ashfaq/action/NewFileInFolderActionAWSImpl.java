@@ -28,7 +28,13 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final Logger log = LoggerFactory.getLogger(NewFileInFolderActionAWSImpl.class);
 
     private static final String STATUS_COMPLETE = "COMPLETED";
-
+    private static final String BATCH_PREDICTION_NAME = "EXAMPLE";
+    private static final String ML_MODEL_ID = "EXAMPLE-pr-2014-09-12-15-14-04-924";
+    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results";
+    private static final String S3_DATA_LOCATION = "s3://eml-test-EXAMPLE/data.csv";
+    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema";
+    private static final String DATASOURCE_ID = "exampleDataSourceId";
+    private static final String DATASOURCE_NAME = "exampleDataSourceName";
     @Override
     public void doIt(final String inFile) throws RuntimeException {
         // 1. Read file from HDFS IN folder
@@ -51,11 +57,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                                                            GetDataSourceResult dataSource, String inFile) {
         CreateBatchPredictionRequest createBatchPredictionRequest = new CreateBatchPredictionRequest();
         createBatchPredictionRequest.withBatchPredictionId(inFile)
-                                    .withBatchPredictionName("EXAMPLE")
-                                    .withMLModelId("EXAMPLE-pr-2014-09-12-15-14-04-924")
+                                    .withBatchPredictionName(BATCH_PREDICTION_NAME)
+                                    .withMLModelId(ML_MODEL_ID)
                                     .withBatchPredictionDataSourceId(dataSource.getDataSourceId())
-                                    .withOutputUri(
-                                        "s3://eml-test-EXAMPLE/test-outputs/" + inFile + "/results");
+                                    .withOutputUri(String.format(S3_OUTPUT_PATTERN, inFile));
         CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(
             createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
@@ -83,10 +88,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
         CreateDataSourceFromS3Request createDataSourceFromS3Request = new CreateDataSourceFromS3Request();
         S3DataSpec dataSpec = new S3DataSpec();
-        dataSpec.withDataLocationS3("s3://eml-test-EXAMPLE/data.csv").withDataSchemaLocationS3(
-            "s3://eml-test-EXAMPLE/data.csv.schema");
-        createDataSourceFromS3Request.withDataSourceId("exampleDataSourceId")
-                                     .withDataSourceName("exampleDataSourceName").withDataSpec(dataSpec);
+        dataSpec.withDataLocationS3(S3_DATA_LOCATION).withDataSchemaLocationS3(
+                S3_DATA_LOCATION_SCHEMA);
+        createDataSourceFromS3Request.withDataSourceId(DATASOURCE_ID)
+                                     .withDataSourceName(DATASOURCE_NAME).withDataSpec(dataSpec);
         CreateDataSourceFromS3Result dataSourceFromS3 = amazonMLClient
             .createDataSourceFromS3(createDataSourceFromS3Request);
         // check if created
