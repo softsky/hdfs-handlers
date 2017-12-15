@@ -1,5 +1,9 @@
 package com.localblox.ashfaq.filewatcher;
 
+import static com.localblox.ashfaq.filewatcher.HdfsFileWatcher.DEFAULT_IN_PATTERN;
+import static com.localblox.ashfaq.filewatcher.HdfsFileWatcher.DEFAULT_OUT_PATTERN;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -10,6 +14,7 @@ import static org.mockito.Mockito.when;
 import org.apache.hadoop.hdfs.DFSInotifyEventInputStream;
 import org.apache.hadoop.hdfs.inotify.Event;
 import org.apache.hadoop.hdfs.inotify.EventBatch;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,6 +22,8 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+
+import java.util.UUID;
 
 /**
  *
@@ -67,6 +74,21 @@ public class HdfsFileWatcherUnitTest {
 
     }
 
+    @Test
+    public void testInOutRegexp() {
+
+        String uuid = UUID.randomUUID().toString();
+
+        String infile = "/in/" + uuid + ".csv";
+        String outfile = "/out/" + uuid + ".csv";
+
+        assertTrue(infile.matches(DEFAULT_IN_PATTERN));
+        assertFalse(infile.matches(DEFAULT_OUT_PATTERN));
+
+        assertTrue(outfile.matches(DEFAULT_OUT_PATTERN));
+        assertFalse(outfile.matches(DEFAULT_IN_PATTERN));
+
+    }
     // TODO - add more tests for processing
 
 }
