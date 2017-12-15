@@ -31,7 +31,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     @Override
     public void doIt(final String inFile) throws RuntimeException {
-        // read file from HDFS
+        // 1. Read file from HDFS IN folder
         SparkSession spark = SparkSession
                 .builder()
                 .appName("Java Spark SQL basic example")
@@ -40,7 +40,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         Dataset<Row> dataSet = spark.read().csv(inFile);
         // init amazon machine learning client
         AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder.defaultClient();
-        // create dataSource to S3
+        // 2. Create DataSource (name from filename)
         CreateDataSourceFromS3Request createDataSourceFromS3Request = new CreateDataSourceFromS3Request();
         S3DataSpec dataSpec = new S3DataSpec();
         dataSpec.withDataLocationS3("s3://eml-test-EXAMPLE/data.csv").withDataSchemaLocationS3(
@@ -60,14 +60,13 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
             }
         } while (STATUS_COMPLETE.equals(dataSource.getStatus()));
 
-
-        // TODO Load input file to AWS S3
+        // 3. Load input file to AWS datasource
         AmazonS3 s3client = AmazonS3EncryptionClientBuilder.defaultClient();
         InputStream inputStream = null;
         ObjectMetadata objectMetadata = null;
         s3client.putObject(new PutObjectRequest("bucketName", "keyName", inputStream, objectMetadata));
 
-        // create batch prediction request
+        // 4. Cretae Batch predition with params (DataSource ID, ...)
         CreateBatchPredictionRequest createBatchPredictionRequest = new CreateBatchPredictionRequest();
         createBatchPredictionRequest.withBatchPredictionId("EXAMPLE-bp-2014-09-12-15-14-04-156")
                         .withBatchPredictionName("EXAMPLE")
@@ -77,7 +76,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // execute request
         CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
-        // check batch prediction result
+        // 5. Poll predtion status untill COMPLETE
         GetBatchPredictionRequest getBatchPredictionRequest = new GetBatchPredictionRequest();
         getBatchPredictionRequest.withBatchPredictionId(batchPredictionId);
         GetBatchPredictionResult batchPredictionResult;
@@ -90,8 +89,8 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
             }
         } while (!STATUS_COMPLETE.equals(batchPredictionResult.getStatus()));
 
-        // TODO Read Prediction result from S3
-        // TODO write result into OUT folder in HDFS
+        // TODO 6. Read Prediction result from S3
+        // TODO 7. write result into OUT folder in HDFS
     }
 
 }
