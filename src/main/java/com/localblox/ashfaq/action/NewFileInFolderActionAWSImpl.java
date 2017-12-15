@@ -31,9 +31,9 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final String STATUS_COMPLETE = "COMPLETED";
     private static final String BATCH_PREDICTION_NAME = "EXAMPLE";
     private static final String ML_MODEL_ID = "EXAMPLE-pr-2014-09-12-15-14-04-924";
-    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results";
-    private static final String S3_DATA_LOCATION = "s3://eml-test-EXAMPLE/data.csv";
-    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema";
+    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results"; // TODO get from AppConfig
+    private static final String S3_DATA_LOCATION = "s3://eml-test-EXAMPLE/data.csv"; // TODO get from AppConfig
+    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema"; // TODO get from AppConfig
     private static final String DATASOURCE_ID = "exampleDataSourceId";
     private static final String DATASOURCE_NAME = "exampleDataSourceName";
 
