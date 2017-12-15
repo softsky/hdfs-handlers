@@ -13,6 +13,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <hadoop.version>2.9.0</hadoop.version>
+        <aws.sdk.version>1.11.248</aws.sdk.version>
     </properties>
 
     <dependencies>
@@ -63,10 +64,10 @@
             <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>${aws.sdk.version}</version>
-		</dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
 
         <!-- Test dependencies-->
         <dependency>
