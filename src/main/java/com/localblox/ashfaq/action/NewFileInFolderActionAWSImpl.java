@@ -17,6 +17,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 
 import java.io.InputStream;
@@ -38,7 +39,28 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                 .appName("Java Spark SQL basic example")
                 .config("spark.master", "local")
                 .getOrCreate();
-        Dataset<Row> dataSet = spark.read().csv(inFile);
+//        Dataset<Row> dataSet = spark.read().csv(inFile);
+        SQLContext sqlContext = new SQLContext(spark);
+        Dataset<Row> df = sqlContext.read().format("com.databricks.spark.csv")
+                        .option("header", "true") // Use first line of all files as header
+                        .option("inferSchema", "true") // Automatically infer data types
+                        .load(inFile);
+
+        Dataset<Row> selectedData = df.select("Address", "City Name", "State Code", "County Name",
+                        "Zip Code", "Contact Person Name", "Contact Person Position",
+                        "Gender Contact Person 2", "Employee Count", "Employee Range",
+                        "Annual Revenues", "Sales Range", "SIC Name / Category", "Category",
+                        "Full Category Set", "Latitude", "Longitude", "Physical Neighborhood",
+                        "Love Score", "Freshness Score", "Holistic Score", "Hours of Operation",
+                        "Reviews Scanned", "Good Reviews Scanned", "Average Review Rating",
+                        "Likes Count", "Social Media Profiles Count", "Facebook Profile",
+                        "Twitter Profile", "Foursquare Profile", "HQ_Followers", "HQ_Type",
+                        "HQ_Employees", "HQ_Name", "HQ_YearFounded", "HQ_Categories",
+                        "HQ_Specialties", "HQ_Revenue", "HQ_Ticker", "HQ_Exchange",
+                        "HQ_Acquisitions", "HQ_GrowthScore", "HQ_EstMonthlyUniques",
+                        "HQ_EstInboundLinks", "HQ_TwitterFollowers", "HQ_FacebookLikes",
+                        "HQ_FacebookTalkingAbout", "HQ_LinkedInFollowerCount");
+
         // init amazon machine learning client
         AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder.defaultClient();
         // 2. Create DataSource (name from filename)
