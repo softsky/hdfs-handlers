@@ -127,8 +127,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private SparkSession getSparkSession() {
-        return SparkSession.builder().appName("Java Spark Transferring Application")
-                           .config("spark.master", "local").getOrCreate();
+        return SparkSession.builder().appName("Input file to AWS ML prediction action").getOrCreate();
     }
 
     private Dataset<Row> readFromHDFS(SparkSession spark, String inFile) {
