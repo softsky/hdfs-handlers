@@ -4,6 +4,7 @@ import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.regexp_extract;
 
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.machinelearning.AmazonMachineLearning;
 import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
 import com.amazonaws.services.machinelearning.model.CreateBatchPredictionRequest;
@@ -59,7 +60,9 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         SparkSession spark = getSparkSession();
         Dataset<Row> selectedData = readFromHDFS(spark, inFile);
         // init amazon machine learning client
-        AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder.defaultClient();
+        AmazonMachineLearningClientBuilder clientBuilder = AmazonMachineLearningClientBuilder.standard();
+        clientBuilder.setRegion(Regions.US_EAST_1.getName());
+        AmazonMachineLearning amazonMLClient = clientBuilder.build();
         // 3. Load input file to AWS datasource
         loadDataToS3(selectedData);
         // 2. Create DataSource (name from filename)
