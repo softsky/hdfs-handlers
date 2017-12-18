@@ -15,6 +15,7 @@ import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
 import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
+import com.localblox.ashfaq.config.AppConfig;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.spark.ml.feature.OneHotEncoder;
@@ -97,9 +98,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private void loadDataToS3(Dataset<Row> selectedData) {
-        selectedData.write().format("com.knoldus.spark.s3").option("accessKey", "s3_access_key")
-                    .option("secretKey", "s3_secret_key").option("bucket", "bucket_name")
-                    .option("fileType", "csv").save();
+        log.info("Starting to load data to S3");
+        selectedData.write().format("com.knoldus.spark.s3").option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
+                .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey()).option("bucket", "bucket_name")
+                .option("fileType", "csv").save();
     }
 
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
