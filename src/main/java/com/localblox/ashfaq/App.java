@@ -12,8 +12,6 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-
 /**
  *
  */
@@ -22,8 +20,6 @@ public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) {
-        System.out.println("input arguments: ");
-        Arrays.asList(args).forEach(arg -> System.out.println(arg));
         Options options = new Options();
 
         options.addOption(OptionBuilder.withLongOpt("help").withDescription("show help.").create("h"));
