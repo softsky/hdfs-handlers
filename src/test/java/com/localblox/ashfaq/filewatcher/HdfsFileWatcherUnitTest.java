@@ -53,7 +53,7 @@ public class HdfsFileWatcherUnitTest {
         });
 
         when(eventBatch.getEvents()).thenReturn(new Event[]{
-            new Event.CloseEvent("test", 256, System.currentTimeMillis())
+            new Event.RenameEvent.Builder().dstPath("test").timestamp(System.currentTimeMillis()).build()
         });
 
     }
@@ -69,7 +69,7 @@ public class HdfsFileWatcherUnitTest {
 
         fileWatcher.stop();
 
-        verify(fileWatcher, times(3)).processCloseEvent(any());
+        verify(fileWatcher, times(3)).processRenameEvent(any());
         // TODO verify logic was called
 
     }

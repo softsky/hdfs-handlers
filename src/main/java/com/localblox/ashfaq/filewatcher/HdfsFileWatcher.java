@@ -127,9 +127,6 @@ public class HdfsFileWatcher {
             for (Event event : events.getEvents()) {
                 log.info("start process event type: {}, value: {}", event.getEventType(), event);
                 switch (event.getEventType()) {
-                    case CLOSE:
-                        processCloseEvent((CloseEvent) event);
-                        break;
                     case RENAME:
                         processRenameEvent((RenameEvent) event);
                         break;
@@ -147,7 +144,7 @@ public class HdfsFileWatcher {
      *
      * @param renameEvent close event
      */
-    private void processRenameEvent(final RenameEvent renameEvent) {
+    void processRenameEvent(final RenameEvent renameEvent) {
         // TODO - we need to handle situation when there will be more that one file watcher.
         // And it should not take one file for processing more that once. So maube we need to rename file inprocess
         // (like locking)
@@ -166,12 +163,6 @@ public class HdfsFileWatcher {
             // TODO - handle file processing exception
             log.error("error of processing file", e);
         }
-    }
-
-    void processCloseEvent(final CloseEvent closeEvent) {
-
-        log.info("close event processor just for debug");
-
     }
 
     /**

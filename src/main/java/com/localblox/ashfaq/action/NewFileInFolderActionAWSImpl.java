@@ -1,5 +1,9 @@
 package com.localblox.ashfaq.action;
 
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.regexp_extract;
+
 import com.amazonaws.services.machinelearning.AmazonMachineLearning;
 import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
 import com.amazonaws.services.machinelearning.model.CreateBatchPredictionRequest;
@@ -12,25 +16,20 @@ import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.spark.api.java.function.MapFunction;
-import org.apache.spark.sql.AnalysisException;
-import org.apache.spark.sql.Column;
+import org.apache.commons.lang3.time.StopWatch;
+import org.apache.spark.ml.feature.OneHotEncoder;
+import org.apache.spark.ml.feature.StringIndexer;
+import org.apache.spark.ml.feature.StringIndexerModel;
+import org.apache.spark.ml.linalg.SparseVector;
 import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoder;
-import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.lit;
-import static org.apache.spark.sql.functions.udf;
-
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,11 +42,15 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final String STATUS_COMPLETE = "COMPLETED";
     private static final String BATCH_PREDICTION_NAME = "EXAMPLE";
     private static final String ML_MODEL_ID = "EXAMPLE-pr-2014-09-12-15-14-04-924";
-    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results"; // TODO get from AppConfig
+    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results"; // TODO get from
+    // AppConfig
     private static final String S3_DATA_LOCATION = "s3://eml-test-EXAMPLE/data.csv"; // TODO get from AppConfig
-    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema"; // TODO get from AppConfig
+    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema"; // TODO get from
+    // AppConfig
     private static final String DATASOURCE_ID = "exampleDataSourceId";
     private static final String DATASOURCE_NAME = "exampleDataSourceName";
+
+    private static final String UDF_VECTOR_TO_STRING = "udfVectorToSting";
 
     @Override
     public void doIt(final String inFile) throws RuntimeException {
@@ -78,7 +81,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(
             createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
-        // 5. Poll predtion status untill COMPLETE
+        // 5. Poll predtion status until COMPLETE
         GetBatchPredictionRequest getBatchPredictionRequest = new GetBatchPredictionRequest();
         getBatchPredictionRequest.withBatchPredictionId(batchPredictionId);
         GetBatchPredictionResult batchPredictionResult;
@@ -129,10 +132,17 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private Dataset<Row> readFromHDFS(SparkSession spark, String inFile) {
+
+        StopWatch watch = new StopWatch();
+        watch.start();
+
+        registerUdfs(spark);
+
         Dataset<Row> ds = spark.read()
                                .option("header", true)
                                .csv(inFile)
-                               .select("Address", "City Name", "State Code", "County Name", "Zip Code",
+                               .select("LocalBlox ID", "Address", "City Name",
+                                       "State Code", "County Name", "Zip Code",
                                        "Contact Person Name", "Contact Person Position",
                                        "Gender Contact Person 2", "Employee Count",
                                        "Employee Range", "Annual Revenues", "Sales Range",
@@ -165,64 +175,96 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                                        "6 Digit SIC ( Source2 )",
                                        "SIC6 Category Name",
                                        "SIC ( Source3 )",
-                                       "Credit Rating");
+                                       "Credit Rating",
+                                       "Additional Attributes");
 
         // TODO - pre-process columns:
 
-        //df.select("Facebook Profile").flatMap(x => x.toString.split(";")).filter(x => x.trim.startsWith("Likes:"))
-        // .map(_.split(":")(1))
+        ds = ds.withColumn("FaceBookLikesCount",
+                           regexp_extract(col("Facebook Profile"), "(Likes:)(\\d{1,})", 2));
+        ds = ds.withColumn("TwitterFollowersCount",
+                           regexp_extract(col("Twitter Profile"), "(Followers:)(\\d{1,})", 2));
+        ds = ds.withColumn("TwitterFollowingCount",
+                           regexp_extract(col("Twitter Profile"), "(Following:)(\\d{1,})", 2));
 
-        spark.udf().register("getFBLikes", (String s) -> transformFBToLikes(s), DataTypes.StringType);
+        ds = encodeOneHot(ds, "SIC Name / Category", "SICNameCategoryVector");
+        ds = encodeOneHot(ds, "Category", "CategoryVector");
+        ds = encodeOneHot(ds, "Full Category Set", "FullCategorySetVector");
 
-        ds = ds.withColumn("FaceBookLikeCount", callUDF("getFBLikes", col("Facebook Profile")));
-
-        Encoder<Row> rowEncoder = Encoders.bean(Row.class);
-        ds.select("County Name", "Zip Code")
-          .map((MapFunction<Row, Row>) value -> RowFactory.create(value.toSeq(),value+"dssdsdsdsd"), rowEncoder).show();
-
-//        UserDefinedFunction userDefinedFunction = udf()
-
-//        Review Sources	- Probably have a count
-//        Facebook Profile	- Extract features (Number of likes)
-//        Twitter Profile	- Extract features (Number of followers, following)
-//        Additional Attributes	- Make binary features (DoesAcceptCreditCard?, etc)
-//        SIC Name / Category	- one hot encoding
-//        Category	- one hot encoding
-//        Full Category Set	- one hot encoding
-
-//        // TODO - remove beffore production!!! needed to explore data!
-//        // spark.sql("SELECT * FROM global_temp.aidata").show()
-//        // FIXME doesn wor yet: scala> spark.sql("SELECT * FROM global_temp.aidata").show()
-//        // FIXME org.apache.spark.sql.AnalysisException: Table or view not found: `global_temp`.`aidata`
-//        try {
-//            String view = "aidata";
-//            ds.createGlobalTempView(view);
-//            log.info("TEMRORARY VIEW CREATED FOR DATA EXPLORING: {}", view);
-//            System.out.println("now you can explore the data...");
-//            spark.sql("SELECT * FROM global_temp.aidata").show();
-//            System.in.read();
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-
-        // dump dataset to file for exploging
+        // dump dataset to file for exploring
         String outPath = "hdfs://master/out/" + StringUtils.substringAfterLast(inFile, "/");
 
         log.info("dump file to {}", outPath);
 
         ds.write()
           .option("header", true)
-//          .option("quoteMode", "NON_NUMERIC")
           .option("quoteAll", true)
           .csv(outPath);
+
+        log.info("Processing takes: {} ms", watch.getTime());
 
         return ds;
     }
 
+    private void registerUdfs(SparkSession spark) {
+        // register UDF for SparceVector to string encoding
+        spark.udf().register(UDF_VECTOR_TO_STRING, (SparseVector s) -> udfVectorToSting(s), DataTypes.StringType);
+    }
+
+    /**
+     * Encode column woth OneHotEncoder.
+     *
+     * Output column will be represented as SparseVector trancformed to String in format "n|idx|val".
+     *
+     * Where 'n' denoted number of elements in vector, 'idx' point to element wheve value exists, 'val' contains
+     * value itself
+     *
+     * @param ds           - input datatser
+     * @param inputColumn  - input column to encode
+     * @param outputColumn - output column name
+     * @return - output dataset
+     */
+    private Dataset<Row> encodeOneHot(final Dataset<Row> ds, final String inputColumn, final String outputColumn) {
+
+        String tmpIndexColumn = "tmpCategoryIndex";
+        String tmpVectorColumn = "tmpCategoryVector";
+
+        StringIndexerModel indexer = new StringIndexer()
+            .setInputCol(inputColumn)
+            .setOutputCol(tmpIndexColumn)
+            .setHandleInvalid("keep") // also "skip" ant "error" strategy is possible.
+            .fit(ds);
+
+        Dataset<Row> indexed = indexer.transform(ds);
+
+        OneHotEncoder encoder = new OneHotEncoder().setInputCol(tmpIndexColumn).setOutputCol(tmpVectorColumn);
+        Dataset<Row> res = encoder.transform(indexed);
+
+        res = res.withColumn(outputColumn, callUDF(UDF_VECTOR_TO_STRING, col(tmpVectorColumn)));
+
+        return res.drop(tmpIndexColumn, tmpVectorColumn);
+    }
+
+    /**
+     * Translate {@link SparseVector} to String notation "n|idx|val"
+     *
+     * @return String representation of SparseVector
+     */
+    private static String udfVectorToSting(SparseVector vector) {
+        Integer idx = vector.indices().length > 0 ? vector.indices()[0] : null;
+        Double val = vector.values().length > 0 ? vector.values()[0] : null;
+        return vector.size() + "|" + idx + "|" + val;
+    }
+
+    // Alternative approach for transfrommins uing UDF. Usage example:
+    //  spark.udf().register("getFBLikes", (String s) -> transformFBToLikes(s), DataTypes.StringType);
+    //  ds = ds.withColumn("FaceBookLikeCount", callUDF("getFBLikes", col("Facebook Profile")));
     private static String transformFBToLikes(String input) {
-        String result = Arrays.stream(input.split(";"))
-                              .filter(s1 -> s1.trim().startsWith("Likes:"))
-                              .findFirst().map(s1 -> s1.split(":")[1]).orElse("");
+        String result = Optional.ofNullable(input)
+                                .map(s -> Arrays.stream(s.split(";"))
+                                                .filter(s1 -> s1.trim().startsWith("Likes:"))
+                                                .findFirst().map(s1 -> s1.split(":")[1])
+                                                .orElse("")).orElse("");
         return result;
     }
 
