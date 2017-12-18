@@ -4,19 +4,12 @@ import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
 import static org.apache.spark.sql.functions.regexp_extract;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.machinelearning.AmazonMachineLearning;
-import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
-import com.amazonaws.services.machinelearning.model.CreateBatchPredictionRequest;
-import com.amazonaws.services.machinelearning.model.CreateBatchPredictionResult;
-import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Request;
-import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Result;
-import com.amazonaws.services.machinelearning.model.GetBatchPredictionRequest;
-import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
-import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
-import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
-import com.amazonaws.services.machinelearning.model.S3DataSpec;
-import com.localblox.ashfaq.config.AppConfig;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.spark.ml.feature.OneHotEncoder;
@@ -30,9 +23,21 @@ import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.machinelearning.AmazonMachineLearning;
+import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
+import com.amazonaws.services.machinelearning.model.CreateBatchPredictionRequest;
+import com.amazonaws.services.machinelearning.model.CreateBatchPredictionResult;
+import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Request;
+import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Result;
+import com.amazonaws.services.machinelearning.model.GetBatchPredictionRequest;
+import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
+import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
+import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
+import com.amazonaws.services.machinelearning.model.S3DataSpec;
+import com.localblox.ashfaq.config.AppConfig;
 
 /**
  * Action for processing input files with AWS.
@@ -62,6 +67,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // init amazon machine learning client
         AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder
             .standard()
+            .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+                    AppConfig.getInstance().getS3AccessKeyId(),
+                    AppConfig.getInstance()
+                            .getS3SecretAccessKey())))
             .withRegion(Regions.US_EAST_1)
             .build();
         // 3. Load input file to AWS datasource
@@ -103,13 +112,36 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private void loadDataToS3(Dataset<Row> selectedData) {
         log.info("Starting to load data to S3");
-        selectedData.write()
-                    .format("com.knoldus.spark.s3")
+/*        AmazonS3 client = AmazonS3ClientBuilder
+                        .standard()
+                        .withRegion(Regions.US_EAST_1)
+                        .withCredentials(
+                                        new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+                                                        AppConfig.getInstance().getS3AccessKeyId(),
+                                                        AppConfig.getInstance()
+                                                                        .getS3SecretAccessKey())))
+                        .build();
+
+        client.put*/
+
+        String accKey = null;
+        String secretKey = null;
+        try {
+            accKey = URLEncoder.encode(AppConfig.getInstance().getS3AccessKeyId(), "UTF-8");
+            secretKey = URLEncoder.encode(AppConfig.getInstance().getS3SecretAccessKey(), "UTF-8");
+
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+
+        String s3path = "s3a://" + accKey + ":" + secretKey + "@b-data/";
+        selectedData.write().csv(s3path);
+        /*format("com.databricks.spark.csv")
                     .option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
                     .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey())
                     .option("bucket", "bucket_name")
                     .option("fileType", "csv")
-                    .save();
+                    .save();*/
     }
 
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
