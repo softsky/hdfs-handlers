@@ -60,9 +60,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         SparkSession spark = getSparkSession();
         Dataset<Row> selectedData = readFromHDFS(spark, inFile);
         // init amazon machine learning client
-        AmazonMachineLearningClientBuilder clientBuilder = AmazonMachineLearningClientBuilder.standard();
-        clientBuilder.setRegion(Regions.US_EAST_1.getName());
-        AmazonMachineLearning amazonMLClient = clientBuilder.build();
+        AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder
+            .standard()
+            .withRegion(Regions.US_EAST_1)
+            .build();
         // 3. Load input file to AWS datasource
         loadDataToS3(selectedData);
         // 2. Create DataSource (name from filename)
@@ -102,16 +103,23 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private void loadDataToS3(Dataset<Row> selectedData) {
         log.info("Starting to load data to S3");
-        selectedData.write().format("com.knoldus.spark.s3").option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
-                .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey()).option("bucket", "bucket_name")
-                .option("fileType", "csv").save();
+        selectedData.write()
+                    .format("com.knoldus.spark.s3")
+                    .option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
+                    .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey())
+                    .option("bucket", "bucket_name")
+                    .option("fileType", "csv")
+                    .save();
     }
 
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
+
         CreateDataSourceFromS3Request createDataSourceFromS3Request = new CreateDataSourceFromS3Request();
         S3DataSpec dataSpec = new S3DataSpec();
-        dataSpec.withDataLocationS3(S3_DATA_LOCATION).withDataSchemaLocationS3(
-            S3_DATA_LOCATION_SCHEMA);
+
+        dataSpec.withDataLocationS3(S3_DATA_LOCATION)
+                .withDataSchemaLocationS3(S3_DATA_LOCATION_SCHEMA);
+
         createDataSourceFromS3Request.withDataSourceId(DATASOURCE_ID)
                                      .withDataSourceName(DATASOURCE_NAME).withDataSpec(dataSpec);
         CreateDataSourceFromS3Result dataSourceFromS3 = amazonMLClient

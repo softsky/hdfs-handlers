@@ -1,5 +1,7 @@
 package com.localblox.ashfaq;
 
+import static org.apache.commons.cli.OptionBuilder.*;
+
 import com.localblox.ashfaq.config.AppConfig;
 import com.localblox.ashfaq.filewatcher.HdfsFileWatcher;
 import org.apache.commons.cli.BasicParser;
@@ -22,10 +24,10 @@ public class App {
     public static void main(String[] args) {
         Options options = new Options();
 
-        options.addOption(OptionBuilder.withLongOpt("help").withDescription("show help.").create("h"));
-        options.addOption(OptionBuilder.withLongOpt("hdfsAdminUri").hasArg().withDescription("HDFS admin URI").isRequired().create("hdfsUri"));
-        options.addOption(OptionBuilder.withLongOpt("s3accessKey").hasArg().withDescription("access key id for s3.").isRequired().create("s3a"));
-        options.addOption(OptionBuilder.withLongOpt("s3secretAccessKey").hasArg().withDescription("secret access key for s3.").isRequired().create("s3s"));
+        options.addOption(withLongOpt("help").withDescription("show help.").create("h"));
+        options.addOption(withLongOpt("hdfsAdminUri").hasArg().withDescription("HDFS admin URI").isRequired().create("hdfsUri"));
+        options.addOption(withLongOpt("s3accessKey").hasArg().withDescription("access key id for s3.").isRequired().create("s3a"));
+        options.addOption(withLongOpt("s3secretAccessKey").hasArg().withDescription("secret access key for s3.").isRequired().create("s3s"));
 //        options.addOption(OptionBuilder.withLongOpt("s3passwd").hasArg().withDescription("password for for s3.").isRequired().create("s3p"));
 
         CommandLineParser parser = new BasicParser();
