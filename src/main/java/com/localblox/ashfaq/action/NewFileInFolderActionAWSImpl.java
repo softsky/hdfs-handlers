@@ -2,26 +2,11 @@ package com.localblox.ashfaq.action;
 
 import static org.apache.spark.sql.functions.callUDF;
 import static org.apache.spark.sql.functions.col;
+import static org.apache.spark.sql.functions.lit;
 import static org.apache.spark.sql.functions.regexp_extract;
-
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.StopWatch;
-import org.apache.spark.ml.feature.OneHotEncoder;
-import org.apache.spark.ml.feature.StringIndexer;
-import org.apache.spark.ml.feature.StringIndexerModel;
-import org.apache.spark.ml.linalg.SparseVector;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.DataTypes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.apache.spark.sql.functions.size;
+import static org.apache.spark.sql.functions.split;
+import static org.apache.spark.sql.functions.when;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -38,6 +23,24 @@ import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
 import com.localblox.ashfaq.config.AppConfig;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.StopWatch;
+import org.apache.spark.ml.feature.OneHotEncoder;
+import org.apache.spark.ml.feature.StringIndexer;
+import org.apache.spark.ml.feature.StringIndexerModel;
+import org.apache.spark.ml.linalg.SparseVector;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.DataTypes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Action for processing input files with AWS.
@@ -153,7 +156,8 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         }
 
         // TODO - such approach only for debug!!! it is not secure.
-        // there are better approaches: https://hadoop.apache.org/docs/r2.9.0/hadoop-aws/tools/hadoop-aws/index.html#S3A_Authentication_methods
+        // there are better approaches: https://hadoop.apache.org/docs/r2.9.0/hadoop-aws/tools/hadoop-aws/index
+        // .html#S3A_Authentication_methods
         String s3path = "s3a://" + accKey + ":" + secretKey + "@b-data/";
         selectedData.write().csv(s3path);
 
@@ -242,9 +246,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                                        "SIC6 Category Name",
                                        "SIC ( Source3 )",
                                        "Credit Rating",
-                                       "Additional Attributes");
+                                       "Additional Attributes",
+                                       "Review Sources");
 
-        // TODO - pre-process columns:
+        ds = ds.withColumn("ReviewSourcesCount", size(split(col("Review Sources"), "Source:")).minus(1));
 
         ds = ds.withColumn("FaceBookLikesCount",
                            regexp_extract(col("Facebook Profile"), "(Likes:)(\\d{1,})", 2));
@@ -252,11 +257,22 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
                            regexp_extract(col("Twitter Profile"), "(Followers:)(\\d{1,})", 2));
         ds = ds.withColumn("TwitterFollowingCount",
                            regexp_extract(col("Twitter Profile"), "(Following:)(\\d{1,})", 2));
+        ds = ds.withColumn("TwitterTweetsCount",
+                           regexp_extract(col("Twitter Profile"), "(Tweets:)(\\d{1,})", 2));
+
+        ds = addPaymentMethodColumn(ds, "visa");
+        ds = addPaymentMethodColumn(ds, "master");
+        ds = addPaymentMethodColumn(ds, "cash");
+        ds = addPaymentMethodColumn(ds, "debit");
+        ds = addPaymentMethodColumn(ds, "check");
+        ds = addPaymentMethodColumn(ds, "amex");
+        ds = addPaymentMethodColumn(ds, "financing");
 
         ds = encodeOneHot(ds, "SIC Name / Category", "SICNameCategoryVector");
         ds = encodeOneHot(ds, "Category", "CategoryVector");
         ds = encodeOneHot(ds, "Full Category Set", "FullCategorySetVector");
 
+        // TODO - move to tmp folder or delete
         // dump dataset to file for exploring
         String outPath = "hdfs://master/out/" + StringUtils.substringAfterLast(inFile, "/");
 
@@ -270,6 +286,28 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         log.info("Processing takes: {} ms", watch.getTime());
 
         return ds;
+    }
+
+    /**
+     * Adds payment method support column with name 'AA_PM_support_$payMethod'
+     *
+     * Uses regex extract to retrieve payment method support from column 'Additional Attributes'
+     *
+     * @param ds        input datasource
+     * @param payMethod payment method
+     * @return output datasource with enriched column
+     */
+    private Dataset<Row> addPaymentMethodColumn(Dataset<Row> ds, String payMethod) {
+
+        String colName = "AA_PM_support_" + payMethod;
+        String regexTpl = "(Payment Methods:)[^\\|]{0,}(%s)";
+        String preparedRegex = String.format(regexTpl, payMethod);
+
+        return ds
+            .withColumn(colName,
+                        when(regexp_extract(col("Additional Attributes"), preparedRegex, 2)
+                                 .equalTo(payMethod), lit(1))
+                            .otherwise(lit(0)));
     }
 
     private void registerUdfs(SparkSession spark) {
@@ -320,18 +358,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         Integer idx = vector.indices().length > 0 ? vector.indices()[0] : null;
         Double val = vector.values().length > 0 ? vector.values()[0] : null;
         return vector.size() + "|" + idx + "|" + val;
-    }
-
-    // Alternative approach for transfrommins uing UDF. Usage example:
-    //  spark.udf().register("getFBLikes", (String s) -> transformFBToLikes(s), DataTypes.StringType);
-    //  ds = ds.withColumn("FaceBookLikeCount", callUDF("getFBLikes", col("Facebook Profile")));
-    private static String transformFBToLikes(String input) {
-        String result = Optional.ofNullable(input)
-                                .map(s -> Arrays.stream(s.split(";"))
-                                                .filter(s1 -> s1.trim().startsWith("Likes:"))
-                                                .findFirst().map(s1 -> s1.split(":")[1])
-                                                .orElse("")).orElse("");
-        return result;
     }
 
 }
