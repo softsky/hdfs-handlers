@@ -65,14 +65,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         SparkSession spark = getSparkSession();
         Dataset<Row> selectedData = readFromHDFS(spark, inFile);
         // init amazon machine learning client
-        AmazonMachineLearning amazonMLClient = AmazonMachineLearningClientBuilder
-            .standard()
-            .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
-                    AppConfig.getInstance().getS3AccessKeyId(),
-                    AppConfig.getInstance()
-                            .getS3SecretAccessKey())))
-            .withRegion(Regions.US_EAST_1)
-            .build();
+        AmazonMachineLearning amazonMLClient = getAmazonMLClient();
         // 3. Load input file to AWS datasource
         loadDataToS3(selectedData);
         // 2. Create DataSource (name from filename)
@@ -84,23 +77,47 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // TODO 7. write result into OUT folder in HDFS
     }
 
-    private GetBatchPredictionResult createBatchPrediction(AmazonMachineLearning amazonMLClient,
-                                                           GetDataSourceResult dataSource, String inFile) {
+    /**
+     * Init Amazon ML client with credentials and for US_EAST_1 region.
+     */
+    private AmazonMachineLearning getAmazonMLClient() {
+        return AmazonMachineLearningClientBuilder
+            .standard()
+            .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+                AppConfig.getInstance().getS3AccessKeyId(),
+                AppConfig.getInstance().getS3SecretAccessKey())))
+            .withRegion(Regions.US_EAST_1)
+            .build();
+    }
+
+    /**
+     * Send request to AWS ML to create batch prediction, then wait for creation and return prediction instance.
+     *
+     * @param client     - AWS client
+     * @param dataSource - Data source
+     * @param inFile     - input file name
+     */
+    private GetBatchPredictionResult createBatchPrediction(AmazonMachineLearning client,
+                                                           GetDataSourceResult dataSource,
+                                                           String inFile) {
         CreateBatchPredictionRequest createBatchPredictionRequest = new CreateBatchPredictionRequest();
         createBatchPredictionRequest.withBatchPredictionId(inFile)
                                     .withBatchPredictionName(BATCH_PREDICTION_NAME)
                                     .withMLModelId(ML_MODEL_ID)
                                     .withBatchPredictionDataSourceId(dataSource.getDataSourceId())
                                     .withOutputUri(String.format(S3_OUTPUT_PATTERN, inFile));
-        CreateBatchPredictionResult createBatchPredictionResult = amazonMLClient.createBatchPrediction(
+
+        CreateBatchPredictionResult createBatchPredictionResult = client.createBatchPrediction(
             createBatchPredictionRequest);
         String batchPredictionId = createBatchPredictionResult.getBatchPredictionId();
+
         // 5. Poll predtion status until COMPLETE
         GetBatchPredictionRequest getBatchPredictionRequest = new GetBatchPredictionRequest();
         getBatchPredictionRequest.withBatchPredictionId(batchPredictionId);
+
         GetBatchPredictionResult batchPredictionResult;
         do {
-            batchPredictionResult = amazonMLClient.getBatchPrediction(getBatchPredictionRequest);
+            batchPredictionResult = client.getBatchPrediction(getBatchPredictionRequest);
             try {
                 TimeUnit.MILLISECONDS.sleep(100L);
             } catch (InterruptedException e) {
@@ -112,6 +129,7 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     private void loadDataToS3(Dataset<Row> selectedData) {
         log.info("Starting to load data to S3");
+        //TODO - delete after connect issues will be resolved
 /*        AmazonS3 client = AmazonS3ClientBuilder
                         .standard()
                         .withRegion(Regions.US_EAST_1)
@@ -134,8 +152,12 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
             throw new RuntimeException(e);
         }
 
+        // TODO - such approach only for debug!!! it is not secure.
+        // there are better approaches: https://hadoop.apache.org/docs/r2.9.0/hadoop-aws/tools/hadoop-aws/index.html#S3A_Authentication_methods
         String s3path = "s3a://" + accKey + ":" + secretKey + "@b-data/";
         selectedData.write().csv(s3path);
+
+        //TODO - delete after connect issues will be resolved
         /*format("com.databricks.spark.csv")
                     .option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
                     .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey())
