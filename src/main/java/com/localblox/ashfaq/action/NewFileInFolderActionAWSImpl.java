@@ -131,7 +131,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private void loadDataToS3(Dataset<Row> selectedData) {
-        log.info("Starting to load data to S3");
         //TODO - delete after connect issues will be resolved
 /*        AmazonS3 client = AmazonS3ClientBuilder
                         .standard()
@@ -158,7 +157,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // TODO - such approach only for debug!!! it is not secure.
         // there are better approaches: https://hadoop.apache.org/docs/r2.9.0/hadoop-aws/tools/hadoop-aws/index
         // .html#S3A_Authentication_methods
-        String s3path = "s3a://" + accKey + ":" + secretKey + "@b-data/";
+        String s3path = "s3://" + accKey + ":" + secretKey + "@people-match-ai-input-data/train/1/";
+
+        log.info("Starting to load data to S3: {}", s3path);
+
         selectedData.write().csv(s3path);
 
         //TODO - delete after connect issues will be resolved
