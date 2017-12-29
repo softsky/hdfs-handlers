@@ -7,6 +7,7 @@ import org.apache.hadoop.hdfs.DFSInotifyEventInputStream;
 import org.apache.hadoop.hdfs.client.HdfsAdmin;
 import org.apache.hadoop.hdfs.inotify.Event;
 import org.apache.hadoop.hdfs.inotify.Event.CloseEvent;
+import org.apache.hadoop.hdfs.inotify.Event.RenameEvent;
 import org.apache.hadoop.hdfs.inotify.EventBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,15 +41,16 @@ public class HdfsFileWatcher {
 
     private static final Logger log = LoggerFactory.getLogger(HdfsFileWatcher.class);
 
+    // default file name as GUID
+    static final String DEFAULT_IN_PATTERN = "\\/in\\/[0-9a-z\\-]{1,}\\.csv";
+    // default file name as GUID
+    static final String DEFAULT_OUT_PATTERN = "\\/out\\/[0-9a-z\\-]{1,}\\.csv";
+
     private String hdfsAdminUri;
 
-    // TODO check pattern for GIUD
-    // default file name as GUID
-    private String inFilePattern = "in/[a-fA-F0-9\\-].csv";
+    private String inFilePattern = DEFAULT_IN_PATTERN;
 
-    // TODO check pattern for GIUD
-    // default file name as GUID
-    private String outFilePattern = "out/[a-fA-F0-9\\-].csv";
+    private String outFilePattern = DEFAULT_OUT_PATTERN;
 
     /**
      * Creates HdfsFileWatcher instance.
@@ -85,6 +87,8 @@ public class HdfsFileWatcher {
     // processed twice).
     public void start() {
 
+        log.info("start HDFS watcher by hdfsAdminUri [{}]", hdfsAdminUri);
+
         proceed.set(true);
 
         DFSInotifyEventInputStream eventStream = getDfsInotifyEventInputStream();
@@ -101,6 +105,11 @@ public class HdfsFileWatcher {
             } catch (Exception e) {
                 // TODO - handle exception.
                 log.error("error while events watching: {}", e.getMessage(), e);
+                try {
+                    Thread.sleep(1000L);
+                } catch (InterruptedException e1) {
+                    log.error("thread interrupted: {}", e.getMessage());
+                }
             }
         }
 
@@ -116,15 +125,16 @@ public class HdfsFileWatcher {
     void processEventBatch(final EventBatch events) {
         if (events != null) {
             for (Event event : events.getEvents()) {
-                log.info("event type: {}", event.getEventType());
+                log.info("start process event type: {}, value: {}", event.getEventType(), event);
                 switch (event.getEventType()) {
-                    case CLOSE:
-                        processCloseEvent((CloseEvent) event);
+                    case RENAME:
+                        processRenameEvent((RenameEvent) event);
                         break;
                     default:
                         //TODO - process default behaviour
                         break;
                 }
+                log.info("stop process event type: {}", event.getEventType());
             }
         }
     }
@@ -132,28 +142,27 @@ public class HdfsFileWatcher {
     /**
      * Process rename file event.
      *
-     * @param closeEvent close event
+     * @param renameEvent close event
      */
-    void processCloseEvent(final CloseEvent closeEvent) {
-
+    void processRenameEvent(final RenameEvent renameEvent) {
         // TODO - we need to handle situation when there will be more that one file watcher.
         // And it should not take one file for processing more that once. So maube we need to rename file inprocess
         // (like locking)
         try {
-            String filePath = closeEvent.getPath();
+            String filePath = renameEvent.getDstPath();
 
             if (filePath.matches(inFilePattern)) {
                 new NewFileInFolderActionAWSImpl().doIt(filePath);
             } else if (filePath.matches(outFilePattern)) {
                 new NewFileOutFolderActionAWSImpl().doIt(filePath);
             } else {
-                log.info("skip close event: file = {}, size = {} due to not match IN [{}] or OUT [{}] pattern",
-                         filePath, closeEvent.getFileSize(), inFilePattern, outFilePattern);
+                log.warn("skip close event: file = {}, time = {} due to not match IN [{}] or OUT [{}] pattern",
+                         filePath, renameEvent.getTimestamp(), inFilePattern, outFilePattern);
             }
         } catch (Exception e) {
             // TODO - handle file processing exception
+            log.error("error of processing file", e);
         }
-
     }
 
     /**
