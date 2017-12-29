@@ -1,6 +1,6 @@
 package com.localblox.ashfaq;
 
-import static org.apache.commons.cli.OptionBuilder.*;
+import static org.apache.commons.cli.OptionBuilder.withLongOpt;
 
 import com.localblox.ashfaq.config.AppConfig;
 import com.localblox.ashfaq.filewatcher.HdfsFileWatcher;
@@ -8,7 +8,6 @@ import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
@@ -26,8 +25,8 @@ public class App {
 
         options.addOption(withLongOpt("help").withDescription("show help.").create("h"));
         options.addOption(withLongOpt("hdfsAdminUri").hasArg().withDescription("HDFS admin URI").isRequired().create("hdfsUri"));
-        options.addOption(withLongOpt("s3accessKey").hasArg().withDescription("access key id for s3.").isRequired().create("s3a"));
-        options.addOption(withLongOpt("s3secretAccessKey").hasArg().withDescription("secret access key for s3.").isRequired().create("s3s"));
+        options.addOption(withLongOpt("s3accessKey").hasArg().withDescription("access key id for s3.").create("s3a"));
+        options.addOption(withLongOpt("s3secretAccessKey").hasArg().withDescription("secret access key for s3.").create("s3s"));
 //        options.addOption(OptionBuilder.withLongOpt("s3passwd").hasArg().withDescription("password for for s3.").isRequired().create("s3p"));
 
         CommandLineParser parser = new BasicParser();
@@ -43,21 +42,18 @@ public class App {
 
         AppConfig.initConfig(cmd.getOptionValue("s3a"), cmd.getOptionValue("s3s"), cmd.getOptionValue("s3p"));
 
-        // TODO approach #1: use own File watcher
+        //approach #1: use own File watcher
         HdfsFileWatcher watcher = new HdfsFileWatcher(cmd.getOptionValue("hdfsUri"));
 
         watcher.start();
-
-        // TODO approach #2: use Spark streaming API
-        // ...
 
     }
 
     private static void help(Options options) {
         // This prints out some help
-        HelpFormatter formater = new HelpFormatter();
+        HelpFormatter formatter = new HelpFormatter();
 
-        formater.printHelp("Main", options);
+        formatter.printHelp("Main", options);
         System.exit(0);
     }
 }

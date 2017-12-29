@@ -8,8 +8,6 @@ import static org.apache.spark.sql.functions.size;
 import static org.apache.spark.sql.functions.split;
 import static org.apache.spark.sql.functions.when;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.machinelearning.AmazonMachineLearning;
 import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
@@ -22,7 +20,6 @@ import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
 import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
-import com.localblox.ashfaq.config.AppConfig;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -37,8 +34,6 @@ import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -47,6 +42,15 @@ import java.util.function.BiFunction;
 
 /**
  * Action for processing input files with AWS.
+ *
+ * Access to AWS should be configured through setting enviromnemt variables:
+ *
+ * export AWS_ACCESS_KEY_ID=my.aws.key
+ *
+ * export AWS_SECRET_ACCESS_KEY=my.secret.key
+ *
+ * http://hadoop.apache.org/docs/current/hadoop-aws/tools/hadoop-aws/index.html#Authenticating_with_S3
+ *
  */
 public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
@@ -55,11 +59,16 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final String STATUS_COMPLETE = "COMPLETED";
     private static final String BATCH_PREDICTION_NAME = "EXAMPLE";
     private static final String ML_MODEL_ID = "EXAMPLE-pr-2014-09-12-15-14-04-924";
-    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results"; // TODO get from
-    // AppConfig
-    private static final String S3_DATA_LOCATION = "s3://eml-test-EXAMPLE/data.csv"; // TODO get from AppConfig
-    private static final String S3_DATA_LOCATION_SCHEMA = "s3://eml-test-EXAMPLE/data.csv.schema"; // TODO get from
-    // AppConfig
+
+    // TODO get from AppConfig
+    private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results";
+
+    // TODO get from AppConfig
+    private static final String S3_DATA_LOCATION = "s3://people-match-ai-input-data/train/1/";
+
+    // TODO get from AppConfig
+    private static final String S3_DATA_LOCATION_SCHEMA = "s3://people-match-ai-input-data/train/1/data.csv.schema";
+
     private static final String DATASOURCE_ID = "exampleDataSourceId";
     private static final String DATASOURCE_NAME = "exampleDataSourceName";
 
@@ -161,13 +170,14 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         // 1. Read file from HDFS IN folder
         SparkSession spark = getSparkSession();
         Dataset<Row> selectedData = readFromHDFS(spark, inFile);
-        // init amazon machine learning client
-        AmazonMachineLearning amazonMLClient = getAmazonMLClient();
         // 3. Load input file to AWS datasource
         loadDataToS3(selectedData);
+
+        // init amazon machine learning client
+        AmazonMachineLearning amazonMLClient = getAmazonMLClient();
         // 2. Create DataSource (name from filename)
         GetDataSourceResult dataSource = createDataSource(amazonMLClient);
-        // 4. Cretae Batch predition with params (DataSource ID, ...)
+        // 4. Create Batch prediction with params (DataSource ID, ...)
         GetBatchPredictionResult batchPredictionResult = createBatchPrediction(amazonMLClient, dataSource, inFile);
 
         // TODO 6. Read Prediction result from S3
@@ -175,14 +185,17 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     /**
-     * Init Amazon ML client with credentials and for US_EAST_1 region.
+     * Init Amazon ML client for US_EAST_1 region.
+     *
+     * Credentials configured through environment variables
+     *
      */
     private AmazonMachineLearning getAmazonMLClient() {
         return AmazonMachineLearningClientBuilder
             .standard()
-            .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
-                AppConfig.getInstance().getS3AccessKeyId(),
-                AppConfig.getInstance().getS3SecretAccessKey())))
+//            .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(
+//                AppConfig.getInstance().getS3AccessKeyId(),
+//                AppConfig.getInstance().getS3SecretAccessKey())))
             .withRegion(Regions.US_EAST_1)
             .build();
     }
@@ -224,46 +237,15 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         return batchPredictionResult;
     }
 
+
+
     private void loadDataToS3(Dataset<Row> selectedData) {
-        //TODO - delete after connect issues will be resolved
-/*        AmazonS3 client = AmazonS3ClientBuilder
-                        .standard()
-                        .withRegion(Regions.US_EAST_1)
-                        .withCredentials(
-                                        new AWSStaticCredentialsProvider(new BasicAWSCredentials(
-                                                        AppConfig.getInstance().getS3AccessKeyId(),
-                                                        AppConfig.getInstance()
-                                                                        .getS3SecretAccessKey())))
-                        .build();
 
-        client.put*/
+        log.info("Starting to load data to S3: {}", S3_DATA_LOCATION);
 
-        String accKey = null;
-        String secretKey = null;
-        try {
-            accKey = URLEncoder.encode(AppConfig.getInstance().getS3AccessKeyId(), "UTF-8");
-            secretKey = URLEncoder.encode(AppConfig.getInstance().getS3SecretAccessKey(), "UTF-8");
+        // FIXME - there are still access denied problem to AWS.
+        selectedData.write().csv(S3_DATA_LOCATION);
 
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-
-        // TODO - such approach only for debug!!! it is not secure.
-        // there are better approaches: https://hadoop.apache.org/docs/r2.9.0/hadoop-aws/tools/hadoop-aws/index
-        // .html#S3A_Authentication_methods
-        String s3path = "s3://" + accKey + ":" + secretKey + "@people-match-ai-input-data/train/1/";
-
-        log.info("Starting to load data to S3: {}", s3path);
-
-        selectedData.write().csv(s3path);
-
-        //TODO - delete after connect issues will be resolved
-        /*format("com.databricks.spark.csv")
-                    .option("accessKey", AppConfig.getInstance().getS3AccessKeyId())
-                    .option("secretKey", AppConfig.getInstance().getS3SecretAccessKey())
-                    .option("bucket", "bucket_name")
-                    .option("fileType", "csv")
-                    .save();*/
     }
 
     private GetDataSourceResult createDataSource(AmazonMachineLearning amazonMLClient) {
