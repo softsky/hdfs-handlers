@@ -20,6 +20,7 @@ import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
 import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
 import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
 import com.amazonaws.services.machinelearning.model.S3DataSpec;
+import com.localblox.ashfaq.config.AppConfig;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -50,7 +51,6 @@ import java.util.function.BiFunction;
  * export AWS_SECRET_ACCESS_KEY=my.secret.key
  *
  * http://hadoop.apache.org/docs/current/hadoop-aws/tools/hadoop-aws/index.html#Authenticating_with_S3
- *
  */
 public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
@@ -188,7 +188,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
      * Init Amazon ML client for US_EAST_1 region.
      *
      * Credentials configured through environment variables
-     *
      */
     private AmazonMachineLearning getAmazonMLClient() {
         return AmazonMachineLearningClientBuilder
@@ -237,8 +236,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         return batchPredictionResult;
     }
 
-
-
     private void loadDataToS3(Dataset<Row> selectedData) {
 
         log.info("Starting to load data to S3: {}", S3_DATA_LOCATION);
@@ -276,7 +273,11 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     }
 
     private SparkSession getSparkSession() {
-        return SparkSession.builder().appName("Input file to AWS ML prediction action").getOrCreate();
+
+        return SparkSession.builder()
+                           .appName("Input file to AWS ML prediction action")
+                           .config("spark.hadoop.fs.defaultFS", AppConfig.getInstance().getHdfsUri())
+                           .getOrCreate();
     }
 
     private Dataset<Row> readFromHDFS(SparkSession spark, String inFile) {
@@ -343,9 +344,9 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         ds = encodeOneHot(ds, "Category", "CategoryVector");
         ds = encodeOneHot(ds, "Full Category Set", "FullCategorySetVector");
 
-        // TODO - move to tmp folder or delete
         // dump dataset to file for exploring
-        String outPath = "hdfs://master/out/" + StringUtils.substringAfterLast(inFile, "/");
+        String outPath = AppConfig.getInstance().getHdfsUri() + "/preprocessed/" +
+                         StringUtils.substringAfterLast(inFile, "/");
 
         log.info("dump file to {}", outPath);
 
@@ -384,8 +385,9 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
 
     /**
      * Get existing desired column names as intersection with real column and desired column array/
+     *
      * @param existing existing columns from dataset
-     * @param desired desired columns
+     * @param desired  desired columns
      * @return column intersection
      */
     public static String[] getExistingDesiredColumns(String[] existing, String[] desired) {

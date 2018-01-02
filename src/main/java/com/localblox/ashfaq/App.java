@@ -40,10 +40,10 @@ public class App {
             help(options);
         }
 
-        AppConfig.initConfig(cmd.getOptionValue("s3a"), cmd.getOptionValue("s3s"), cmd.getOptionValue("s3p"));
+        AppConfig.initConfig(cmd.getOptionValue("s3a"), cmd.getOptionValue("s3s"), cmd.getOptionValue("s3p"), cmd.getOptionValue("hdfsUri"));
 
         //approach #1: use own File watcher
-        HdfsFileWatcher watcher = new HdfsFileWatcher(cmd.getOptionValue("hdfsUri"));
+        HdfsFileWatcher watcher = new HdfsFileWatcher(AppConfig.getInstance().getHdfsUri());
 
         watcher.start();
 
