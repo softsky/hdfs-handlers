@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+spark_master_host=master
+spark_master_port=7077
+
+deploy_mode=client
+
+# read input params:
+if [ ! -z $1 ]; then
+  echo "override spark_master_host with: $1"
+  spark_master_host=$1
+else
+  echo "use default spark_master: $spark_master"
+fi
+
+if [ ! -z $2 ]; then
+  echo "override deploy_mode with: $2"
+  deploy_mode=$2
+else
+  echo "use default deploy_mode: $deploy_mode"
+fi
+
+# build input params:
+spark_master_url=spark://$spark_master_host:$spark_master_port
+
+hdfs_master_host=$spark_master_host
+hdfs_master_url=hdfs://$hdfs_master_host
+
+echo "submit HDFS handler application to master: [$spark_master_url] with deploy mode: [$deploy_mode]"
+
+# Wait for spark master to start
+while ! nc -z $spark_master_host $spark_master_port; do
+  echo "wait for spark master [$spark_master_url] to start..."
+  sleep 2;
+done;
+
+echo "hadoop data node started!"
+
+# submit HDFS handler as spark application
+spark-submit --class com.localblox.ashfaq.App \
+    --master $spark_master_url \
+    --deploy-mode $deploy_mode \
+    /app.jar -hdfsUri $hdfs_master_url
+
