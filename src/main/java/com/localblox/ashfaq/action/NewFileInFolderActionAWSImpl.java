@@ -1,45 +1,43 @@
 package com.localblox.ashfaq.action;
 
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.col;
-import static org.apache.spark.sql.functions.lit;
-import static org.apache.spark.sql.functions.regexp_extract;
-import static org.apache.spark.sql.functions.size;
-import static org.apache.spark.sql.functions.split;
-import static org.apache.spark.sql.functions.when;
-
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.machinelearning.AmazonMachineLearning;
 import com.amazonaws.services.machinelearning.AmazonMachineLearningClientBuilder;
-import com.amazonaws.services.machinelearning.model.CreateBatchPredictionRequest;
-import com.amazonaws.services.machinelearning.model.CreateBatchPredictionResult;
-import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Request;
-import com.amazonaws.services.machinelearning.model.CreateDataSourceFromS3Result;
-import com.amazonaws.services.machinelearning.model.GetBatchPredictionRequest;
-import com.amazonaws.services.machinelearning.model.GetBatchPredictionResult;
-import com.amazonaws.services.machinelearning.model.GetDataSourceRequest;
-import com.amazonaws.services.machinelearning.model.GetDataSourceResult;
-import com.amazonaws.services.machinelearning.model.S3DataSpec;
+import com.amazonaws.services.machinelearning.model.*;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.Upload;
 import com.localblox.ashfaq.config.AppConfig;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.ml.feature.OneHotEncoder;
 import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.StringIndexerModel;
 import org.apache.spark.ml.linalg.SparseVector;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+
+import static org.apache.spark.sql.functions.*;
+
 
 /**
  * Action for processing input files with AWS.
