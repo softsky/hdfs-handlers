@@ -62,10 +62,10 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
     private static final String S3_OUTPUT_PATTERN = "s3://eml-test-EXAMPLE/test-outputs/%s/results";
 
     // TODO get from AppConfig
-    private static final String S3_DATA_LOCATION = "s3://people-match-ai-input-data/train/1/";
+    private static final String S3_DATA_LOCATION = "s3://people-match-ai-input-data-001/train/1/";
 
     // TODO get from AppConfig
-    private static final String S3_DATA_LOCATION_SCHEMA = "s3://people-match-ai-input-data/train/1/data.csv.schema";
+    private static final String S3_DATA_LOCATION_SCHEMA = "s3://people-match-ai-input-data-001/train/1/data.csv.schema";
 
     private static final String DATASOURCE_ID = "exampleDataSourceId";
     private static final String DATASOURCE_NAME = "exampleDataSourceName";
