@@ -78,14 +78,13 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         "Contact Person Name", "Contact Person Position",
         "Gender Contact Person 2", "Employee Count",
         "Employee Range", "Annual Revenues", "Sales Range",
-        "SIC Name / Category", "Category", "Full Category Set",
+        /* "SIC Name / Category", */"Category", /* "Full Category Set", */
         "Latitude", "Longitude", "Physical Neighborhood",
         "Love Score", "Freshness Score", "Holistic Score",
-        "Hours of Operation", "Reviews Scanned",
+        "Reviews Scanned",
         "Good Reviews Scanned", "Average Review Rating",
         "Likes Count", "Social Media Profiles Count",
-        "Facebook Profile", "Twitter Profile",
-        "Foursquare Profile", "HQ_Followers", "HQ_Type",
+        "HQ_Followers", "HQ_Type",
         "HQ_Employees", "HQ_Name", "HQ_YearFounded",
         "HQ_Categories", "HQ_Specialties", "HQ_Revenue",
         "HQ_Ticker", "HQ_Exchange", "HQ_Acquisitions",
@@ -93,7 +92,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         "HQ_EstInboundLinks", "HQ_TwitterFollowers",
         "HQ_FacebookLikes", "HQ_FacebookTalkingAbout",
         "HQ_LinkedInFollowerCount",
-        "Age on LocalBlox",
         "Additional Attribute Count",
         "Photos Captured Count",
         "Year Founded",
@@ -108,7 +106,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         "SIC6 Category Name",
         "SIC ( Source3 )",
         "Credit Rating",
-        "Additional Attributes",
         "Review Sources",
 
         // added 27.12.2017
@@ -141,7 +138,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         "GooglePlaces Photos Count Normalized",
         "CitySearch Reviews Count Normalized",
         "CitySearch Photos Count Normalized",
-        "Full Category Set Normalized",
         "User Count Normalized",
         "Number of Votes on FourSquare Normalized",
         "# of PeopleTalking on Facebook",
@@ -151,13 +147,6 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         "Following Count",
         "Average Review Rating on Google Normalized",
         "Average Review Rating on CitySearch Normalized",
-        "CitySearch Link",
-        "Facebook Link",
-        "FourSquare Link",
-        "GooglePlaces Link",
-        "Manta Link",
-        "Twitter Link",
-        "Yelp Link",
 
         // target column for m-learning
         "sales"
@@ -338,9 +327,9 @@ public class NewFileInFolderActionAWSImpl extends NewFileInFolderAction {
         ds = addPaymentMethodColumn(ds, "amex");
         ds = addPaymentMethodColumn(ds, "financing");
 
-        ds = encodeOneHot(ds, "SIC Name / Category", "SICNameCategoryVector");
+        //ds = encodeOneHot(ds, "SIC Name / Category", "SICNameCategoryVector");
         ds = encodeOneHot(ds, "Category", "CategoryVector");
-        ds = encodeOneHot(ds, "Full Category Set", "FullCategorySetVector");
+        //ds = encodeOneHot(ds, "Full Category Set", "FullCategorySetVector");
 
         // dump dataset to file for exploring
         String outPath = AppConfig.getInstance().getHdfsUri() + "/preprocessed/" +
